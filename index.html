@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TransitOps - AI-Powered Smart Transport Operations Platform</title>
+  <!-- Global client error reporting script -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      const errText = `[CLIENT ERROR] ${message} at ${source}:${lineno}:${colno}`;
+      fetch('/api/logs/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: errText, stack: error ? error.stack : '' })
+      }).catch(() => {});
+    };
+    window.onunhandledrejection = function(event) {
+      const errText = `[CLIENT UNHANDLED REJECTION] ${event.reason}`;
+      fetch('/api/logs/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: errText, stack: event.reason ? event.reason.stack : '' })
+      }).catch(() => {});
+    };
+  </script>
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <div id="app-container">
+    <!-- SIDEBAR NAVIGATION -->
+    <aside id="sidebar">
+      <div class="brand-section">
+        <div class="logo-icon">
+          <i data-lucide="navigation"></i>
+        </div>
+        <span class="brand-name">TransitOps</span>
+      </div>
+
+      <ul class="nav-links">
+        <li class="nav-item active" data-view="dashboard">
+          <a><i data-lucide="layout-dashboard"></i>Dashboard</a>
+        </li>
+        <li class="nav-item" data-view="vehicles">
+          <a><i data-lucide="truck"></i>Vehicles Registry</a>
+        </li>
+        <li class="nav-item" data-view="drivers">
+          <a><i data-lucide="users"></i>Drivers Hub</a>
+        </li>
+        <li class="nav-item" data-view="trips">
+          <a><i data-lucide="milestone"></i>Trips & Dispatch</a>
+        </li>
+        <li class="nav-item" data-view="tracking">
+          <a><i data-lucide="map-pin"></i>GPS Live Tracking</a>
+        </li>
+        <li class="nav-item" data-view="maintenance">
+          <a><i data-lucide="wrench"></i>Maintenance</a>
+        </li>
+        <li class="nav-item" data-view="expenses">
+          <a><i data-lucide="indian-rupee"></i>Expenses & ROI</a>
+        </li>
+        <li class="nav-item" data-view="verification">
+          <a><i data-lucide="shield-check"></i>Driver Verification</a>
+        </li>
+        <li class="nav-item" data-view="logs">
+          <a><i data-lucide="scroll-text"></i>System Logs & Tech</a>
+        </li>
+        <li class="nav-item" data-view="users" id="nav-item-users" style="display:none;">
+          <a><i data-lucide="users-round"></i>User Management</a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop" alt="User avatar" class="user-avatar" id="sidebar-avatar">
+          <div class="user-info">
+            <span class="user-name" id="sidebar-user-name">Sarah Jenkins</span>
+            <span class="user-role-label" id="sidebar-user-role">Admin</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main id="main-content">
+      <!-- TOP NAVIGATION BAR -->
+      <header>
+        <div class="header-title-section">
+          <h1 id="view-title">Dashboard Overview</h1>
+        </div>
+
+        <div class="header-controls">
+          <!-- Active Authenticated User Details -->
+          <div class="role-select-container">
+            <span class="role-select-label"><i data-lucide="user"></i> Active Profile:</span>
+            <span id="header-user-badge" style="font-weight:bold; font-size:12px; margin-left:4px; color:var(--primary);">Sarah Jenkins (Admin)</span>
+            <button id="btn-sign-out" class="btn-secondary" style="padding:4px 10px; font-size:11px; margin-left:12px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="log-out" style="width:12px; height:12px;"></i> Sign Out</button>
+          </div>
+
+          <!-- Theme Toggle -->
+          <button id="theme-toggle-btn" class="btn-icon" title="Toggle Theme">
+            <i data-lucide="sun" id="theme-icon"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW PANELS -->
+      <div class="content-body">
+        
+        <!-- MODULE 1: DASHBOARD -->
+        <section id="panel-dashboard" class="view-panel">
+          <!-- Dashboard Filters -->
+          <div class="filter-bar" style="margin-bottom: 20px; background: var(--bg-secondary); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <span style="font-weight: 600; font-size: 13px;"><i data-lucide="sliders-horizontal" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;"></i> Dashboard Filters:</span>
+            <select id="dashboard-filter-type" class="form-control-input" style="padding:6px 12px; font-size:12px; min-width:120px;">
+              <option value="All">All Vehicle Types</option>
+              <option value="Truck">Truck</option>
+              <option value="Van">Van</option>
+              <option value="Bus">Bus</option>
+              <option value="Trailer">Trailer</option>
+              <option value="Cab">Cab</option>
+              <option value="Auto">Auto</option>
+            </select>
+            <select id="dashboard-filter-status" class="form-control-input" style="padding:6px 12px; font-size:12px; min-width:120px;">
+              <option value="All">All Statuses</option>
+              <option value="Available">Available</option>
+              <option value="On Trip">On Trip</option>
+              <option value="In Shop">In Shop</option>
+            </select>
+            <select id="dashboard-filter-region" class="form-control-input" style="padding:6px 12px; font-size:12px; min-width:120px;">
+              <option value="All">All Regions</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Pune">Pune</option>
+              <option value="Nashik">Nashik</option>
+              <option value="Delhi">Delhi</option>
+              <option value="Bangalore">Bangalore</option>
+            </select>
+          </div>
+
+          <!-- KPI Cards (7 required metrics) -->
+          <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Active Vehicles</span>
+                <span class="kpi-value" id="kpi-active-vehicles">0</span>
+                <span class="kpi-subtitle">Vehicles on active trips</span>
+              </div>
+              <div class="kpi-icon-container bg-primary-grad">
+                <i data-lucide="truck"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Available Vehicles</span>
+                <span class="kpi-value" id="kpi-available-vehicles">0</span>
+                <span class="kpi-subtitle">Vehicles ready for duty</span>
+              </div>
+              <div class="kpi-icon-container bg-success-grad">
+                <i data-lucide="check-circle-2"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">In Shop (Maint)</span>
+                <span class="kpi-value" id="kpi-in-shop">0</span>
+                <span class="kpi-subtitle">Scheduled servicing</span>
+              </div>
+              <div class="kpi-icon-container bg-warning-grad">
+                <i data-lucide="wrench"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Active Trips</span>
+                <span class="kpi-value" id="kpi-active-trips">0</span>
+                <span class="kpi-subtitle">Trips currently in progress</span>
+              </div>
+              <div class="kpi-icon-container bg-info-grad">
+                <i data-lucide="milestone"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Pending Trips (Draft)</span>
+                <span class="kpi-value" id="kpi-pending-trips">0</span>
+                <span class="kpi-subtitle">Draft trips created</span>
+              </div>
+              <div class="kpi-icon-container bg-secondary-grad" style="background:linear-gradient(135deg, #6b7280, #9ca3af); color:white;">
+                <i data-lucide="clock"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Drivers On Duty</span>
+                <span class="kpi-value" id="kpi-drivers-on-duty">0</span>
+                <span class="kpi-subtitle">Drivers currently active</span>
+              </div>
+              <div class="kpi-icon-container bg-primary-grad" style="background:linear-gradient(135deg, #a855f7, #c084fc); color:white;">
+                <i data-lucide="user-check"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Fleet Utilization</span>
+                <span class="kpi-value" id="kpi-utilization">0%</span>
+                <span class="kpi-subtitle">Utilized vs total fleet</span>
+              </div>
+              <div class="kpi-icon-container bg-info-grad">
+                <i data-lucide="gauge"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts and Alerts Grid -->
+          <div class="charts-grid">
+            <div class="panel-card">
+              <div class="panel-header">
+                <span class="panel-title"><i data-lucide="bar-chart-2"></i> Fuel Efficiency by Vehicle</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="fuelEfficiencyChart"></canvas>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <div class="panel-header">
+                <span class="panel-title"><i data-lucide="pie-chart"></i> Operational Cost Breakdown</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="expenseBreakdownChart"></canvas>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <div class="panel-header">
+                <span class="panel-title"><i data-lucide="trending-up"></i> Fleet Utilization History</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="fleetUtilizationChart"></canvas>
+              </div>
+            </div>
+
+            <!-- COMPLIANCE REMINDERS PANEL -->
+            <div class="panel-card">
+              <div class="panel-header">
+                <span class="panel-title"><i data-lucide="bell-ring"></i> Compliance & Expiry Alerts</span>
+                <span class="badge badge-failed" id="reminder-count">0 Alerts</span>
+              </div>
+              <div class="alerts-list" id="dashboard-reminders-list">
+                <!-- Injected via app.js -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 2: VEHICLES REGISTRY -->
+        <section id="panel-vehicles" class="view-panel" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="filter-bar">
+                <input type="text" id="vehicle-search" class="form-control-input" placeholder="Search Registration No...">
+                <select id="vehicle-filter-status" class="form-control-input">
+                  <option value="All">All Statuses</option>
+                  <option value="Available">Available</option>
+                  <option value="On Trip">On Trip</option>
+                  <option value="In Shop">In Shop</option>
+                  <option value="Retired">Retired</option>
+                </select>
+              </div>
+              <button class="btn-primary" id="btn-add-vehicle"><i data-lucide="plus-circle"></i> Register Vehicle</button>
+            </div>
+            
+            <div class="table-wrapper">
+              <table class="custom-table" id="vehicle-table">
+                <thead>
+                  <tr>
+                    <th>Registration No.</th>
+                    <th>Model</th>
+                    <th>Type</th>
+                    <th>Max Load Capacity</th>
+                    <th>Odometer Reading</th>
+                    <th>Status</th>
+                    <th>Certificates</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="vehicle-table-body">
+                  <!-- Injected via app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 3: DRIVERS HUB -->
+        <section id="panel-drivers" class="view-panel" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="filter-bar">
+                <input type="text" id="driver-search" class="form-control-input" placeholder="Search Driver Name...">
+                <select id="driver-filter-status" class="form-control-input">
+                  <option value="All">All Availability</option>
+                  <option value="Available">Available</option>
+                  <option value="On Trip">On Trip</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+                <select id="driver-filter-verify" class="form-control-input">
+                  <option value="All">All Verifications</option>
+                  <option value="Verified">Verified</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </div>
+              <button class="btn-primary" id="btn-add-driver"><i data-lucide="plus-circle"></i> Onboard Driver</button>
+            </div>
+
+            <div class="driver-roster-grid" id="driver-cards-container">
+              <!-- Injected via app.js -->
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 4: TRIPS & DISPATCH -->
+        <section id="panel-trips" class="view-panel" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Create, Dispatch and Manage Shipments</h3>
+              <button class="btn-primary" id="btn-dispatch-trip"><i data-lucide="plus-circle"></i> Create Draft Trip</button>
+            </div>
+
+            <!-- Draft Trips Section -->
+            <div style="margin-top: 10px; margin-bottom: 25px;">
+              <h4 style="margin-bottom:10px; display:flex; align-items:center; gap:6px; color:var(--primary);"><i data-lucide="file-text" style="width:16px; height:16px;"></i> Draft Trips (Awaiting Dispatch)</h4>
+              <div class="table-wrapper">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Trip ID</th>
+                      <th>Route</th>
+                      <th>Vehicle</th>
+                      <th>Driver</th>
+                      <th>Cargo Weight</th>
+                      <th>Distance (km)</th>
+                      <th>Planned Schedule</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="draft-trips-body">
+                    <!-- Injected via app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+            <div style="margin-top: 10px; margin-bottom: 15px;">
+              <h4 style="margin-bottom:10px; display:flex; align-items:center; gap:6px; color:var(--info);"><i data-lucide="truck" style="width:16px; height:16px;"></i> Active Shipments (Dispatched)</h4>
+              <div class="table-wrapper">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Trip ID</th>
+                      <th>Route</th>
+                      <th>Vehicle</th>
+                      <th>Driver</th>
+                      <th>Cargo Weight</th>
+                      <th>Planned Distance</th>
+                      <th>Current Speed</th>
+                      <th>Alerts</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="active-trips-body">
+                    <!-- Injected via app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+            <div>
+              <h4 style="margin-bottom:10px;">Trip History Ledger</h4>
+              <div class="table-wrapper">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Trip ID</th>
+                      <th>Route</th>
+                      <th>Vehicle</th>
+                      <th>Driver</th>
+                      <th>Cargo Weight</th>
+                      <th>Schedule</th>
+                      <th>Completed Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historical-trips-body">
+                    <!-- Injected via app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 5: GPS LIVE TRACKING -->
+        <section id="panel-tracking" class="view-panel" style="display:none;">
+          <div class="panel-card">
+            <div class="map-control-panel">
+              <!-- Leaflet Map Container -->
+              <div>
+                <div id="tracking-map"></div>
+              </div>
+
+              <!-- Map sidebar panel info -->
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div class="panel-card" style="padding:15px; border-color: rgba(245, 158, 11, 0.3)">
+                  <h4 style="color:var(--warning); font-size:14px; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="shield-alert"></i> Geofencing Status
+                  </h4>
+                  <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">
+                    Active Corridor: <b>Lonavala Corridor</b> (Radius: 8km)<br>
+                    Alerts trigger on speed limits exceeding 50 km/h or deviation.
+                  </p>
+                </div>
+
+                <div class="panel-card" style="padding:15px; flex-grow:1; overflow-y:auto; max-height: 300px;">
+                  <h4 style="font-size:14px; margin-bottom:8px;">Live Feed Updates</h4>
+                  <div style="display:flex; flex-direction:column; gap:8px;" id="live-feed-updates">
+                    <!-- Dynamic simulated messages -->
+                    <div style="font-size:11px; color:var(--text-muted);">Simulation listening for GPS telemetry pulses...</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 6: MAINTENANCE MODULE -->
+        <section id="panel-maintenance" class="view-panel" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Maintenance, Inspections & Preventive Service Schedules</h3>
+              <button class="btn-primary" id="btn-schedule-maint"><i data-lucide="calendar"></i> Schedule Servicing</button>
+            </div>
+
+            <div style="margin-top: 10px; margin-bottom: 20px;">
+              <h4 style="margin-bottom:10px;">Active Work Orders ("In Shop" Vehicles)</h4>
+              <div class="table-wrapper">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Work ID</th>
+                      <th>Vehicle Reg No.</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Scheduled Date</th>
+                      <th>Estimated Cost</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="active-maintenance-body">
+                    <!-- Injected via app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+            <div>
+              <h4 style="margin-bottom:10px;">Maintenance History Log</h4>
+              <div class="table-wrapper">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Work ID</th>
+                      <th>Vehicle Reg No.</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Scheduled Date</th>
+                      <th>Completion Date</th>
+                      <th>Actual Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody id="completed-maintenance-body">
+                    <!-- Injected via app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 7: EXPENSES & ROI -->
+        <section id="panel-expenses" class="view-panel" style="display:none;">
+          <!-- ROI Summary Grid -->
+          <div class="dashboard-grid">
+            <div class="kpi-card" style="border-color: rgba(16, 185, 129, 0.2)">
+              <div class="kpi-content">
+                <span class="kpi-title" style="color:var(--success)">Total Earnings</span>
+                <span class="kpi-value" id="kpi-earnings">0 INR</span>
+                <span class="kpi-subtitle">Income from completed dispatches</span>
+              </div>
+              <div class="kpi-icon-container bg-success-grad">
+                <i data-lucide="trending-up"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-color: rgba(239, 68, 68, 0.2)">
+              <div class="kpi-content">
+                <span class="kpi-title" style="color:var(--danger)">Total Operations Cost</span>
+                <span class="kpi-value" id="kpi-total-expenses">0 INR</span>
+                <span class="kpi-subtitle">Fuel, tolls, servicing & repairs</span>
+              </div>
+              <div class="kpi-icon-container bg-danger-grad">
+                <i data-lucide="trending-down"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-content">
+                <span class="kpi-title">Net Cash Flow</span>
+                <span class="kpi-value" id="kpi-net-profit">0 INR</span>
+                <span class="kpi-subtitle">Total operations yield</span>
+              </div>
+              <div class="kpi-icon-container bg-primary-grad">
+                <i data-lucide="wallet"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-grid" style="margin-bottom: 20px;">
+            <div class="panel-card">
+              <div class="panel-header">
+                <span class="panel-title"><i data-lucide="bar-chart-3"></i> Fleet Vehicle Net Profit ROI (Income vs Costs)</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="vehicleRoiChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Expense Actions Panel -->
+            <div class="panel-card" style="justify-content: center; gap:20px;">
+              <h4 style="font-size:16px;"><i data-lucide="coins"></i> Financial Bookkeeping Controls</h4>
+              <p style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
+                Maintain precise operational logs. Record fuel fills, toll fees, corrective repairs, and insurance deposits to compute metrics on fleet ROI.
+              </p>
+              <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <button class="btn-primary" id="btn-add-expense"><i data-lucide="plus-circle"></i> Log Operation Expense</button>
+                <button class="btn-secondary" id="btn-export-csv"><i data-lucide="download"></i> Export Ledger CSV</button>
+                <button class="btn-secondary" id="btn-export-pdf"><i data-lucide="file-text"></i> Generate PDF Statement</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <h4>Operations Expense & Cash Ledger</h4>
+              <div class="filter-bar">
+                <select id="expense-filter-vehicle" class="form-control-input">
+                  <option value="All">All Vehicles</option>
+                  <!-- Injected via JS -->
+                </select>
+                <select id="expense-filter-type" class="form-control-input">
+                  <option value="All">All Categories</option>
+                  <option value="Fuel">Fuel</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Toll">Toll</option>
+                  <option value="Repair">Repair</option>
+                  <option value="Insurance">Insurance</option>
+                  <option value="Income">Income (Revenue)</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Expense ID</th>
+                    <th>Date</th>
+                    <th>Vehicle Reg</th>
+                    <th>Trip ID</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount (INR)</th>
+                  </tr>
+                </thead>
+                <tbody id="expense-table-body">
+                  <!-- Injected via app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 8: DRIVER IDENTITY VERIFICATION MODULE -->
+        <section id="panel-verification" class="view-panel" style="display:none;">
+          <div class="verification-search-box">
+            <h2>Driver Identity Verification Module</h2>
+            <p>
+              Passenger safety and corporate trust compliance. Securely search, inspect, and verify the legal status, government-issued credentials, and current safety records of transport operators.
+            </p>
+            <div class="verification-search-bar">
+              <input type="text" id="verify-search-input" class="form-control-input" style="flex-grow:1;" placeholder="Enter License Number (e.g. DL-1420180099411)...">
+              <button class="btn-primary" id="btn-run-verify-search"><i data-lucide="search"></i> Verify</button>
+            </div>
+            <div style="font-size: 11px; color:var(--text-muted);">
+              Hint: Select a driver from the dropdown list to quickly query:
+              <select id="quick-verify-select" class="form-control-input" style="padding: 2px 6px; font-size:11px; margin-left:6px;">
+                <option value="">-- Choose Driver --</option>
+                <!-- Injected via JS -->
+              </select>
+            </div>
+          </div>
+
+          <div class="verification-result-panel" id="verification-result-container" style="display:none;">
+            <!-- Injected via verification.js / app.js -->
+          </div>
+        </section>
+
+        <!-- MODULE 9: SYSTEM AUDIT LOGS & FUTURES TECH -->
+        <section id="panel-logs" class="view-panel" style="display:none;">
+          <div class="panel-card" style="margin-bottom:24px;">
+            <h3>TransitOps Core System Audit Log</h3>
+            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">
+              Chronological log of critical events, state transitions, security events, and database mutations.
+            </p>
+            <div class="table-wrapper">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Operator ID</th>
+                    <th>Role</th>
+                    <th>Action Event</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-logs-body">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Future roadmap notes demonstrating scalability -->
+          <div class="ai-insights-box">
+            <h4 class="ai-insights-header"><i data-lucide="cpu"></i> Future Architecture Scalability Plan</h4>
+            <div class="ai-insights-text">
+              <p style="margin-bottom: 8px;">
+                TransitOps is architected with a modular frontend layer to facilitate seamless scaling to enterprise architectures:
+              </p>
+              <ul style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                <li><b>MongoDB Atlas Migration:</b> The current mock LocalStorage DB model structures map 1:1 to document collections (Vehicles, Drivers, Trips, Expenses). Standardizing models simplifies integration of REST endpoints.</li>
+                <li><b>Node.js REST API:</b> Replaces the browser state manager with backend services utilizing Express.js or Fastify, implementing JWT-based RBAC.</li>
+                <li><b>AI Route Optimization:</b> Connects GPS tracking telemetry to machine learning models (e.g. GraphHopper, OSRM) to calculate ETAs, dynamic traffic rerouting, and route deviations.</li>
+                <li><b>Predictive Maintenance:</b> Analyzes sensor vibration telemetry and thermal trends using IoT gateways.</li>
+                <li><b>Driver Behavior Analysis:</b> Integrates safety score logic using telematics and video monitoring for acceleration/braking analysis.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 10: USER MANAGEMENT (Admin Only) -->
+        <section id="panel-users" class="view-panel" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Operator Accounts & Permissions</h3>
+              <button class="btn-primary" id="btn-add-user"><i data-lucide="plus-circle"></i> Add Operator Account</button>
+            </div>
+            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:15px;">
+              As System Administrator, you can manage operator credentials, roles, and profiles.
+            </p>
+            <div class="table-wrapper">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Email Address</th>
+                    <th>Username</th>
+                    <th>System Role</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <!-- Loaded dynamically via app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== MODAL OVERLAYS ==================== -->
+
+  <!-- MODAL: REGISTER VEHICLE -->
+  <div class="modal-backdrop" id="modal-vehicle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="vehicle-modal-title">Register New Vehicle</h3>
+        <button class="modal-close" onclick="closeModal('modal-vehicle')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="vehicle-form">
+          <input type="hidden" id="vehicle-id">
+          <div class="form-grid">
+            <div>
+              <label class="form-label" for="vehicle-reg">Registration Number *</label>
+              <input type="text" id="vehicle-reg" class="form-control-input" style="width:100%;" placeholder="e.g. MH-12-PQ-4567" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-model">Model Name *</label>
+              <input type="text" id="vehicle-model" class="form-control-input" style="width:100%;" placeholder="e.g. Tata Prima" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-type">Vehicle Type *</label>
+              <select id="vehicle-type" class="form-control-input" style="width:100%;" required>
+                <option value="Truck">Truck</option>
+                <option value="Van">Van</option>
+                <option value="Bus">Bus</option>
+                <option value="Trailer">Trailer</option>
+                <option value="Cab">Cab</option>
+                <option value="Auto">Auto</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-load">Max Load Capacity (kg) *</label>
+              <input type="number" id="vehicle-load" class="form-control-input" style="width:100%;" placeholder="e.g. 5000" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-odometer">Current Odometer (km) *</label>
+              <input type="number" id="vehicle-odometer" class="form-control-input" style="width:100%;" placeholder="e.g. 10000" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-cost">Acquisition Cost (INR) *</label>
+              <input type="number" id="vehicle-cost" class="form-control-input" style="width:100%;" placeholder="e.g. 2500000" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-insurance">Insurance Expiry Date *</label>
+              <input type="date" id="vehicle-insurance" class="form-control-input" style="width:100%;" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-fitness">Fitness Certificate Expiry *</label>
+              <input type="date" id="vehicle-fitness" class="form-control-input" style="width:100%;" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-permit">Permit Expiry Date *</label>
+              <input type="date" id="vehicle-permit" class="form-control-input" style="width:100%;" required>
+            </div>
+            <div>
+              <label class="form-label" for="vehicle-region">Base Operating Region *</label>
+              <select id="vehicle-region" class="form-control-input" style="width:100%;" required>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Pune">Pune</option>
+                <option value="Nashik">Nashik</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Bangalore">Bangalore</option>
+              </select>
+            </div>
+            <div class="form-group-full">
+              <label class="form-label" for="vehicle-specs">Technical Specifications</label>
+              <input type="text" id="vehicle-specs" class="form-control-input" style="width:100%;" placeholder="e.g. 180 HP, Double Axle Container">
+            </div>
+            <div class="form-group-full">
+              <label class="form-label">Upload supporting documents (PDF / Images)</label>
+              <input type="file" class="form-control-input" style="width:100%;" disabled title="Document storage mock active">
+              <span style="font-size:10px; color:var(--text-muted);">Simulated secure server storage repository active.</span>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-vehicle')">Cancel</button>
+        <button class="btn-primary" type="submit" form="vehicle-form">Save Vehicle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ONBOARD DRIVER -->
+  <div class="modal-backdrop" id="modal-driver">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="driver-modal-title">Onboard New Driver</h3>
+        <button class="modal-close" onclick="closeModal('modal-driver')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="driver-form">
+          <input type="hidden" id="driver-id">
+          <div class="form-grid">
+            <div class="form-group-full">
+              <label class="form-label" for="driver-name">Full Name *</label>
+              <input type="text" id="driver-name" class="form-control-input" style="width:100%;" placeholder="John Doe" required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-photo">Photo URL</label>
+              <input type="text" id="driver-photo" class="form-control-input" style="width:100%;" placeholder="https://unsplash.com/...">
+            </div>
+            <div>
+              <label class="form-label" for="driver-license">Driving License Number *</label>
+              <input type="text" id="driver-license" class="form-control-input" style="width:100%;" placeholder="DL-14201800..." required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-license-cat">License Category *</label>
+              <select id="driver-license-cat" class="form-control-input" style="width:100%;" required>
+                <option value="Heavy Transport">Heavy Transport</option>
+                <option value="Light Vehicle">Light Vehicle</option>
+                <option value="Commercial Bus">Commercial Bus</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="driver-license-exp">License Expiry Date *</label>
+              <input type="date" id="driver-license-exp" class="form-control-input" style="width:100%;" required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-govid">Government ID details *</label>
+              <input type="text" id="driver-govid" class="form-control-input" style="width:100%;" placeholder="Aadhaar: 1234-5678-..." required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-emergency">Emergency Contact Details *</label>
+              <input type="text" id="driver-emergency" class="form-control-input" style="width:100%;" placeholder="Name (Relation) - Phone" required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-safety">Safety Rating Score (0-100) *</label>
+              <input type="number" id="driver-safety" class="form-control-input" style="width:100%;" min="0" max="100" placeholder="e.g. 90" required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-exp">Experience (Years) *</label>
+              <input type="number" id="driver-exp" class="form-control-input" style="width:100%;" min="0" placeholder="e.g. 5" required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-contact">Contact Number *</label>
+              <input type="text" id="driver-contact" class="form-control-input" style="width:100%;" placeholder="e.g. +91 98765 43210" required>
+            </div>
+            <div>
+              <label class="form-label" for="driver-status">Availability Status *</label>
+              <select id="driver-status" class="form-control-input" style="width:100%;" required>
+                <option value="Available">Available</option>
+                <option value="On Trip">On Trip</option>
+                <option value="Off Duty">Off Duty</option>
+                <option value="Suspended">Suspended</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="driver-verify-status">Verification Status *</label>
+              <select id="driver-verify-status" class="form-control-input" style="width:100%;" required>
+                <option value="Pending">Pending</option>
+                <option value="Verified">Verified</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+            <div class="form-group-full">
+              <label class="form-label" for="driver-history">Driving & Violation History</label>
+              <input type="text" id="driver-history" class="form-control-input" style="width:100%;" placeholder="No accident history. Minor violations if any.">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-driver')">Cancel</button>
+        <button class="btn-primary" type="submit" form="driver-form">Save Driver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE DRAFT TRIP -->
+  <div class="modal-backdrop" id="modal-dispatch">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Create Draft Transport Request</h3>
+        <button class="modal-close" onclick="closeModal('modal-dispatch')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="dispatch-form">
+          <div class="form-grid">
+            <div>
+              <label class="form-label" for="dispatch-source">Source Hub *</label>
+              <input type="text" id="dispatch-source" class="form-control-input" style="width:100%;" placeholder="e.g. Mumbai Port Trust" required>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-dest">Destination Hub *</label>
+              <input type="text" id="dispatch-dest" class="form-control-input" style="width:100%;" placeholder="e.g. Pune Logistics Hub" required>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-vehicle">Select Available Vehicle *</label>
+              <select id="dispatch-vehicle" class="form-control-input" style="width:100%;" required>
+                <!-- Filled via JS -->
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-driver">Select Verified Driver *</label>
+              <select id="dispatch-driver" class="form-control-input" style="width:100%;" required>
+                <!-- Filled via JS -->
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-weight">Cargo Payload Weight (kg) *</label>
+              <input type="number" id="dispatch-weight" class="form-control-input" style="width:100%;" placeholder="e.g. 3500" required>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-dist">Planned Trip Distance (km) *</label>
+              <input type="number" id="dispatch-dist" class="form-control-input" style="width:100%;" placeholder="e.g. 150" required>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-duration">Estimated Travel Duration (hrs) *</label>
+              <input type="number" step="0.1" id="dispatch-duration" class="form-control-input" style="width:100%;" placeholder="e.g. 4.5" required>
+            </div>
+            <div>
+              <label class="form-label" for="dispatch-schedule">Delivery Schedule Date/Time *</label>
+              <input type="datetime-local" id="dispatch-schedule" class="form-control-input" style="width:100%;" required>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-dispatch')">Cancel</button>
+        <button class="btn-primary" type="submit" form="dispatch-form">Register Draft Trip</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SCHEDULE MAINTENANCE -->
+  <div class="modal-backdrop" id="modal-maintenance">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Schedule Vehicle Maintenance</h3>
+        <button class="modal-close" onclick="closeModal('modal-maintenance')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="maintenance-form">
+          <div class="form-grid">
+            <div class="form-group-full">
+              <label class="form-label" for="maint-vehicle">Select Vehicle *</label>
+              <select id="maint-vehicle" class="form-control-input" style="width:100%;" required>
+                <!-- Filled via JS -->
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="maint-type">Service Class Type *</label>
+              <select id="maint-type" class="form-control-input" style="width:100%;" required>
+                <option value="Preventive">Preventive Maintenance</option>
+                <option value="Corrective">Corrective Repair</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="maint-cost">Estimated Service Cost (INR) *</label>
+              <input type="number" id="maint-cost" class="form-control-input" style="width:100%;" placeholder="e.g. 12000" required>
+            </div>
+            <div>
+              <label class="form-label" for="maint-date">Scheduled Work Date *</label>
+              <input type="date" id="maint-date" class="form-control-input" style="width:100%;" required>
+            </div>
+            <div class="form-group-full">
+              <label class="form-label" for="maint-desc">Detailed Issue Description *</label>
+              <input type="text" id="maint-desc" class="form-control-input" style="width:100%;" placeholder="e.g. Engine oil replacement and transmission tuneup" required>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-maintenance')">Cancel</button>
+        <button class="btn-primary" type="submit" form="maintenance-form">Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LOG OPERATIONAL EXPENSE -->
+  <div class="modal-backdrop" id="modal-expense">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Log New Expense Record</h3>
+        <button class="modal-close" onclick="closeModal('modal-expense')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="expense-form">
+          <div class="form-grid">
+            <div>
+              <label class="form-label" for="exp-vehicle">Select Vehicle *</label>
+              <select id="exp-vehicle" class="form-control-input" style="width:100%;" required>
+                <!-- Filled via JS -->
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="exp-type">Expense Category *</label>
+              <select id="exp-type" class="form-control-input" style="width:100%;" required onchange="toggleFuelExpenseFields()">
+                <option value="Fuel">Fuel Purchase</option>
+                <option value="Toll">Toll Charges</option>
+                <option value="Repair">Corrective Repair</option>
+                <option value="Insurance">Insurance Payment</option>
+                <option value="Other">Other Expenditures</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="exp-amount">Amount paid (INR) *</label>
+              <input type="number" id="exp-amount" class="form-control-input" style="width:100%;" placeholder="e.g. 5000" required>
+            </div>
+            <div>
+              <label class="form-label" for="exp-date">Date paid *</label>
+              <input type="date" id="exp-date" class="form-control-input" style="width:100%;" required>
+            </div>
+            <!-- Optional fuel specific fields -->
+            <div id="fuel-fields" style="display:contents;">
+              <div>
+                <label class="form-label" for="exp-liters">Fuel Quantity (Liters)</label>
+                <input type="number" id="exp-liters" class="form-control-input" style="width:100%;" placeholder="e.g. 60">
+              </div>
+              <div>
+                <label class="form-label" for="exp-odometer">Current Odometer (km)</label>
+                <input type="number" id="exp-odometer" class="form-control-input" style="width:100%;" placeholder="e.g. 84000">
+              </div>
+            </div>
+            <div class="form-group-full">
+              <label class="form-label" for="exp-desc">Payment Description *</label>
+              <input type="text" id="exp-desc" class="form-control-input" style="width:100%;" placeholder="e.g. Refueling diesel 60 Liters" required>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-expense')">Cancel</button>
+        <button class="btn-primary" type="submit" form="expense-form">Log Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: COMPLETE TRIP FORM -->
+  <div class="modal-backdrop" id="modal-complete-trip">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3>Complete Trip Odometer Log</h3>
+        <button class="modal-close" onclick="closeModal('modal-complete-trip')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="complete-trip-form">
+          <input type="hidden" id="complete-trip-id">
+          <div class="form-grid">
+            <div class="form-group-full">
+              <label class="form-label" for="complete-trip-odo">Ending Vehicle Odometer (km) *</label>
+              <input type="number" id="complete-trip-odo" class="form-control-input" style="width:100%;" placeholder="e.g. 145350" required>
+              <span id="complete-trip-min-odo" style="font-size:10px; color:var(--text-muted); display:block; margin-top:4px;">Minimum odometer: 0 km</span>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-complete-trip')">Cancel</button>
+        <button class="btn-primary" type="submit" form="complete-trip-form">Complete Trip</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DETAILS POPUP -->
+  <div class="modal-backdrop" id="modal-details">
+    <div class="modal-content" style="max-width:650px;">
+      <div class="modal-header">
+        <h3 id="details-modal-title">Item Profile</h3>
+        <button class="modal-close" onclick="closeModal('modal-details')">&times;</button>
+      </div>
+      <div class="modal-body" id="details-modal-body" style="padding-top:10px;">
+        <!-- Injected dynamically via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-details')">Close View</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD/EDIT OPERATOR USER -->
+  <div class="modal-backdrop" id="modal-user" style="display:none;">
+    <div class="modal-content" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 id="user-modal-title">Add Operator Account</h3>
+        <button class="modal-close" onclick="closeModal('modal-user')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="user-form">
+          <input type="hidden" id="user-id">
+          <div class="form-grid" style="grid-template-columns:1fr; gap:12px;">
+            <div>
+              <label class="form-label" for="user-name-input">Full Name *</label>
+              <input type="text" id="user-name-input" class="form-control-input" style="width:100%;" required placeholder="e.g. David Vance">
+            </div>
+            <div>
+              <label class="form-label" for="user-email-input">Email Address *</label>
+              <input type="email" id="user-email-input" class="form-control-input" style="width:100%;" required placeholder="e.g. david.v@transitops.com">
+            </div>
+            <div>
+              <label class="form-label" for="user-username-input">Username *</label>
+              <input type="text" id="user-username-input" class="form-control-input" style="width:100%;" required placeholder="e.g. fleet_mgr">
+            </div>
+            <div>
+              <label class="form-label" for="user-password-input">Password *</label>
+              <input type="password" id="user-password-input" class="form-control-input" style="width:100%;" required placeholder="Min 6 characters">
+            </div>
+            <div>
+              <label class="form-label" for="user-role-select">Access Role *</label>
+              <select id="user-role-select" class="form-control-input" style="width:100%;" required>
+                <option value="Admin">Admin</option>
+                <option value="Fleet Manager">Fleet Manager</option>
+                <option value="Dispatch Manager">Dispatch Manager</option>
+                <option value="Driver">Driver</option>
+                <option value="Safety Officer">Safety Officer</option>
+                <option value="Financial Analyst">Financial Analyst</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-user')">Cancel</button>
+        <button class="btn-primary" type="submit" form="user-form">Save Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SECURE EMAIL PASSWORD AUTHENTICATION -->
+  <div class="modal-backdrop" id="modal-login" style="display:flex;">
+    <div class="modal-content" style="max-width:420px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+      <div class="modal-header" style="background: linear-gradient(135deg, var(--primary), var(--info)); color:white;">
+        <h3 style="display:flex; align-items:center; gap:8px;"><i data-lucide="shield-check"></i> TransitOps Operator Portal</h3>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        
+        <form id="login-form">
+          <p style="font-size:12px; color:var(--text-secondary); margin-bottom:18px; line-height:1.5;">
+            Enter your registered operator email address and password to access the platform.
+          </p>
+          <div class="form-grid" style="grid-template-columns:1fr; gap:14px;">
+            <div>
+              <label class="form-label" for="login-email-input">Email Address *</label>
+              <input type="email" id="login-email-input" class="form-control-input" style="width:100%;" placeholder="sarah.j@transitops.com" required autocomplete="email">
+            </div>
+            <div>
+              <label class="form-label" for="login-password-input">Password *</label>
+              <input type="password" id="login-password-input" class="form-control-input" style="width:100%;" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+          </div>
+          
+          <div style="margin-top:20px; display:flex;">
+            <button type="submit" class="btn-primary" id="btn-login-submit" style="width:100%; justify-content:center; height:42px;"><i data-lucide="log-in"></i> Sign In to Platform</button>
+          </div>
+        </form>
+
+        <div style="margin-top:20px; padding:12px; background:var(--bg-tertiary); border-radius:8px; border:1px solid var(--border-color); font-size:11px;">
+          <div style="font-weight:600; color:var(--primary); margin-bottom:6px; display:flex; align-items:center; gap:4px;"><i data-lucide="info" style="width:12px; height:12px;"></i> Demo Accounts & Credentials:</div>
+          <div style="display:flex; flex-direction:column; gap:4px; color:var(--text-muted);">
+            <div>🔑 <b>Admin:</b> sarah.j@transitops.com / <code>admin123</code></div>
+            <div>🔑 <b>Fleet Manager:</b> david.v@transitops.com / <code>password123</code></div>
+            <div>🔑 <b>Driver:</b> john.doe@transitops.com / <code>password123</code></div>
+            <div>🔑 <b>Safety Officer:</b> elena.r@transitops.com / <code>password123</code></div>
+            <div>🔑 <b>Financial Analyst:</b> marcus.b@transitops.com / <code>password123</code></div>
+            <div>🔑 <b>Dispatch Manager:</b> michael.c@transitops.com / <code>password123</code></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== LIBRARIES ==================== -->
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet.js -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- ==================== CORE PLATFORM MODULES ==================== -->
+  <script src="js/db.js?v=2"></script>
+  <script src="js/charts.js?v=2"></script>
+  <script src="js/map.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
+</body>
+</html>
