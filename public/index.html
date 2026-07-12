@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TransitOps — Smart Transport Operations Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ======================= AUTH SCREEN ======================= -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="auth-mark">⛟</span>
+      <div>
+        <h1>TransitOps</h1>
+        <p>Smart Transport Operations Console</p>
+      </div>
+    </div>
+
+    <div class="auth-tabs" role="tablist">
+      <button class="auth-tab active" data-tab="login" type="button">Sign In</button>
+      <button class="auth-tab" data-tab="register" type="button">Create Account</button>
+    </div>
+
+    <form id="loginForm" class="auth-form" autocomplete="on">
+      <label>Email<input type="email" id="loginEmail" required placeholder="you@fleet.com" autocomplete="username"/></label>
+      <label>Password<input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password"/></label>
+      <button type="submit" class="btn-primary">Sign In</button>
+      <p class="auth-error" id="loginError"></p>
+      <p class="auth-hint">Demo roles: Fleet Manager · Driver/Dispatcher · Safety Officer · Financial Analyst</p>
+    </form>
+
+    <form id="registerForm" class="auth-form hidden" autocomplete="on">
+      <label>Full Name<input type="text" id="regName" required placeholder="Alex Rivera" autocomplete="name"/></label>
+      <label>Email<input type="email" id="regEmail" required placeholder="you@fleet.com" autocomplete="username"/></label>
+      <label>Password<input type="password" id="regPassword" required minlength="6" placeholder="min. 6 characters" autocomplete="new-password"/></label>
+      <label>Role
+        <select id="regRole" required>
+          <option value="FleetManager">Fleet Manager</option>
+          <option value="Driver">Driver / Dispatcher</option>
+          <option value="SafetyOfficer">Safety Officer</option>
+          <option value="FinancialAnalyst">Financial Analyst</option>
+        </select>
+      </label>
+      <button type="submit" class="btn-primary">Create Account</button>
+      <p class="auth-error" id="registerError"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ======================= APP SHELL ======================= -->
+<div id="appShell" class="app-shell hidden">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="auth-mark small">⛟</span>
+      <span class="brand-name">TransitOps</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard">📊 Dashboard</button>
+      <button class="nav-item" data-view="vehicles">🚚 Vehicles</button>
+      <button class="nav-item" data-view="drivers">🧑‍✈️ Drivers</button>
+      <button class="nav-item" data-view="trips">🗺️ Trips</button>
+      <button class="nav-item" data-view="maintenance">🛠️ Maintenance</button>
+      <button class="nav-item" data-view="fuel">⛽ Fuel & Expenses</button>
+      <button class="nav-item" data-view="reports">📈 Reports</button>
+      <button class="nav-item" data-view="ai">🤖 AI Insights</button>
+      <button class="nav-item" data-view="ledger">⛓️ Blockchain Ledger</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button id="darkModeToggle" class="btn-ghost" type="button">🌙 Dark Mode</button>
+      <div class="user-chip">
+        <div>
+          <strong id="userName">—</strong>
+          <span id="userRole">—</span>
+        </div>
+      </div>
+      <button id="logoutBtn" class="btn-ghost" type="button">Log Out</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <h2 id="viewTitle">Dashboard</h2>
+      <div class="topbar-right">
+        <span id="chainStatus" class="chain-pill">⛓️ verifying…</span>
+      </div>
+    </header>
+
+    <!-- ---------------- DASHBOARD ---------------- -->
+    <section id="view-dashboard" class="view active">
+      <div class="toolbar">
+        <div class="filters">
+          <select id="dashTypeFilter" aria-label="Filter by vehicle type">
+            <option value="">All Types</option>
+            <option>Van</option><option>Truck</option><option>Bike</option><option>Trailer</option>
+          </select>
+          <select id="dashStatusFilter" aria-label="Filter by vehicle status">
+            <option value="">All Statuses</option>
+            <option>Available</option><option>On Trip</option><option>In Shop</option><option>Retired</option>
+          </select>
+          <select id="dashRegionFilter" aria-label="Filter by region">
+            <option value="">All Regions</option>
+          </select>
+          <button id="dashFilterReset" class="btn-ghost" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="panel-grid">
+        <div class="panel">
+          <h3>Fleet Status</h3>
+          <canvas id="fleetStatusChart" height="220"></canvas>
+        </div>
+        <div class="panel">
+          <h3>Trip Pipeline</h3>
+          <canvas id="tripPipelineChart" height="220"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- VEHICLES ---------------- -->
+    <section id="view-vehicles" class="view">
+      <div class="toolbar">
+        <div class="filters">
+          <input type="text" id="vehicleSearch" placeholder="Search reg. number or name…" aria-label="Search vehicles"/>
+          <select id="vehicleStatusFilter" aria-label="Filter vehicles by status">
+            <option value="">All Statuses</option>
+            <option>Available</option><option>On Trip</option><option>In Shop</option><option>Retired</option>
+          </select>
+        </div>
+        <button class="btn-primary" data-modal="vehicleModal" type="button">+ Register Vehicle</button>
+      </div>
+      <div class="table-wrap"><table id="vehicleTable"><thead>
+        <tr>
+          <th data-sort="regNumber" class="sortable">Reg. No.</th>
+          <th data-sort="name" class="sortable">Name / Model</th>
+          <th data-sort="type" class="sortable">Type</th>
+          <th data-sort="maxLoadCapacity" class="sortable mono-th">Max Load (kg)</th>
+          <th data-sort="odometer" class="sortable mono-th">Odometer</th>
+          <th data-sort="status" class="sortable">Status</th>
+          <th data-sort="region" class="sortable">Region</th>
+          <th></th>
+        </tr>
+      </thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ---------------- DRIVERS ---------------- -->
+    <section id="view-drivers" class="view">
+      <div class="toolbar">
+        <div class="filters">
+          <input type="text" id="driverSearch" placeholder="Search name or license…" aria-label="Search drivers"/>
+          <select id="driverStatusFilter" aria-label="Filter drivers by status">
+            <option value="">All Statuses</option>
+            <option>Available</option><option>On Trip</option><option>Off Duty</option><option>Suspended</option>
+          </select>
+        </div>
+        <button class="btn-primary" data-modal="driverModal" type="button">+ Add Driver</button>
+      </div>
+      <div class="table-wrap"><table id="driverTable"><thead>
+        <tr>
+          <th data-sort="name" class="sortable">Name</th>
+          <th data-sort="licenseNumber" class="sortable">License No.</th>
+          <th data-sort="licenseCategory" class="sortable">Category</th>
+          <th data-sort="licenseExpiry" class="sortable">Expiry</th>
+          <th data-sort="safetyScore" class="sortable mono-th">Safety Score</th>
+          <th data-sort="status" class="sortable">Status</th>
+          <th></th>
+        </tr>
+      </thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ---------------- TRIPS ---------------- -->
+    <section id="view-trips" class="view">
+      <div class="toolbar">
+        <div class="filters">
+          <input type="text" id="tripSearch" placeholder="Search source or destination…" aria-label="Search trips"/>
+          <select id="tripStatusFilter" aria-label="Filter trips by status">
+            <option value="">All Statuses</option>
+            <option>Draft</option><option>Dispatched</option><option>Completed</option><option>Cancelled</option>
+          </select>
+        </div>
+        <button class="btn-primary" data-modal="tripModal" type="button">+ Create Trip</button>
+      </div>
+      <div class="table-wrap"><table id="tripTable"><thead>
+        <tr><th>Route</th><th>Vehicle</th><th>Driver</th><th>Cargo (kg)</th><th>Distance</th><th>Status</th><th></th></tr>
+      </thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ---------------- MAINTENANCE ---------------- -->
+    <section id="view-maintenance" class="view">
+      <div class="toolbar">
+        <div class="filters">
+          <select id="maintStatusFilter" aria-label="Filter maintenance by status">
+            <option value="">All Statuses</option>
+            <option>Active</option><option>Closed</option>
+          </select>
+        </div>
+        <button class="btn-primary" data-modal="maintenanceModal" type="button">+ New Maintenance Record</button>
+      </div>
+      <div class="table-wrap"><table id="maintenanceTable"><thead>
+        <tr><th>Vehicle</th><th>Description</th><th>Cost</th><th>Odometer</th><th>Status</th><th>Date</th><th></th></tr>
+      </thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ---------------- FUEL & EXPENSES ---------------- -->
+    <section id="view-fuel" class="view">
+      <div class="split">
+        <div>
+          <div class="toolbar"><h3>Fuel Logs</h3><button class="btn-secondary" data-modal="fuelModal" type="button">+ Log Fuel</button></div>
+          <div class="table-wrap"><table id="fuelTable"><thead><tr><th>Vehicle</th><th>Liters</th><th>Cost</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div>
+          <div class="toolbar"><h3>Expenses</h3><button class="btn-secondary" data-modal="expenseModal" type="button">+ Log Expense</button></div>
+          <div class="table-wrap"><table id="expenseTable"><thead><tr><th>Vehicle</th><th>Type</th><th>Cost</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- REPORTS ---------------- -->
+    <section id="view-reports" class="view">
+      <div class="toolbar">
+        <h3>Fleet Financial & Efficiency Report</h3>
+        <button class="btn-secondary" id="exportCsvBtn" type="button">⬇ Export CSV</button>
+      </div>
+      <div class="panel"><canvas id="roiChart" height="220"></canvas></div>
+      <div class="table-wrap"><table id="reportTable"><thead>
+        <tr><th>Vehicle</th><th>Type</th><th>Distance (km)</th><th>Fuel (L)</th><th>Efficiency (km/L)</th><th>Op. Cost</th><th>Revenue</th><th>ROI %</th></tr>
+      </thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ---------------- AI INSIGHTS ---------------- -->
+    <section id="view-ai" class="view">
+      <div class="toolbar"><h3>🤖 AI Operational Insights</h3><button class="btn-secondary" id="refreshAiBtn" type="button">↻ Refresh</button></div>
+      <p class="hint">Heuristic AI engine: predictive maintenance, fuel anomaly detection, license & safety risk scoring, and utilization analysis — computed live from your fleet data.</p>
+      <div id="aiInsights" class="insight-list"></div>
+    </section>
+
+    <!-- ---------------- BLOCKCHAIN LEDGER ---------------- -->
+    <section id="view-ledger" class="view">
+      <div class="toolbar">
+        <h3>⛓️ Immutable Audit Ledger</h3>
+        <button class="btn-secondary" id="verifyChainBtn" type="button">✓ Verify Chain Integrity</button>
+      </div>
+      <p class="hint">Every dispatch, completion, cancellation, and maintenance event is written as a hash-chained block. Any tampering with historical records breaks the chain and is instantly detectable.</p>
+      <div id="ledgerList" class="ledger-list"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ======================= MODALS ======================= -->
+<div class="modal-overlay" id="vehicleModal">
+  <form class="modal" id="vehicleForm">
+    <h3>Register Vehicle</h3>
+    <label>Registration Number<input type="text" name="regNumber" required placeholder="VAN-05"/></label>
+    <label>Name / Model<input type="text" name="name" required placeholder="Ford Transit"/></label>
+    <label>Type
+      <select name="type" required><option>Van</option><option>Truck</option><option>Bike</option><option>Trailer</option></select>
+    </label>
+    <label>Max Load Capacity (kg)<input type="number" name="maxLoadCapacity" required min="1"/></label>
+    <label>Current Odometer (km)<input type="number" name="odometer" value="0" min="0"/></label>
+    <label>Acquisition Cost<input type="number" name="acquisitionCost" required min="0"/></label>
+    <label>Region<input type="text" name="region" placeholder="North Zone"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Save Vehicle</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="driverModal">
+  <form class="modal" id="driverForm">
+    <h3>Add Driver</h3>
+    <label>Full Name<input type="text" name="name" required/></label>
+    <label>License Number<input type="text" name="licenseNumber" required/></label>
+    <label>License Category<input type="text" name="licenseCategory" required placeholder="Class B"/></label>
+    <label>License Expiry<input type="date" name="licenseExpiry" required/></label>
+    <label>Contact Number<input type="text" name="contact" required/></label>
+    <label>Safety Score (0-100)<input type="number" name="safetyScore" min="0" max="100" value="100"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Save Driver</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="tripModal">
+  <form class="modal" id="tripForm">
+    <h3>Create Trip</h3>
+    <label>Source<input type="text" name="source" required/></label>
+    <label>Destination<input type="text" name="destination" required/></label>
+    <label>Vehicle
+      <select name="vehicle" id="tripVehicleSelect" required></select>
+    </label>
+    <label>Driver
+      <select name="driver" id="tripDriverSelect" required></select>
+    </label>
+    <label>Cargo Weight (kg)<input type="number" name="cargoWeight" required min="0"/></label>
+    <label>Planned Distance (km)<input type="number" name="plannedDistance" required min="0"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Create Trip</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="completeTripModal">
+  <form class="modal" id="completeTripForm">
+    <h3>Complete Trip</h3>
+    <input type="hidden" name="tripId"/>
+    <label>Actual Distance (km)<input type="number" name="actualDistance" required min="0"/></label>
+    <label>Fuel Consumed (L)<input type="number" name="fuelConsumed" min="0" value="0"/></label>
+    <label>Revenue<input type="number" name="revenue" min="0" value="0"/></label>
+    <label>Final Odometer (km)<input type="number" name="finalOdometer" min="0"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Complete Trip</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="maintenanceModal">
+  <form class="modal" id="maintenanceForm">
+    <h3>New Maintenance Record</h3>
+    <label>Vehicle
+      <select name="vehicle" id="maintVehicleSelect" required></select>
+    </label>
+    <label>Description<input type="text" name="description" required placeholder="Oil change"/></label>
+    <label>Cost<input type="number" name="cost" required min="0"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Save Record</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="fuelModal">
+  <form class="modal" id="fuelForm">
+    <h3>Log Fuel</h3>
+    <label>Vehicle<select name="vehicle" id="fuelVehicleSelect" required></select></label>
+    <label>Liters<input type="number" name="liters" required min="0" step="0.01"/></label>
+    <label>Cost<input type="number" name="cost" required min="0" step="0.01"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Save Log</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="expenseModal">
+  <form class="modal" id="expenseForm">
+    <h3>Log Expense</h3>
+    <label>Vehicle<select name="vehicle" id="expenseVehicleSelect" required></select></label>
+    <label>Type
+      <select name="type" required><option>Toll</option><option>Fine</option><option>Parking</option><option>Other</option></select>
+    </label>
+    <label>Cost<input type="number" name="cost" required min="0" step="0.01"/></label>
+    <label>Notes<input type="text" name="notes"/></label>
+    <div class="modal-actions"><button type="button" class="btn-ghost" data-close>Cancel</button><button type="submit" class="btn-primary">Save Expense</button></div>
+    <p class="form-error"></p>
+  </form>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
